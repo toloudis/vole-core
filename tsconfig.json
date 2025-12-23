@@ -5,13 +5,10 @@
     "declaration": true,
     "declarationDir": "es/types",
     "downlevelIteration": true,
-    "lib": ["DOM", "ES2022", "ES6", "DOM.Iterable", "ScriptHost", "ES2016.Array.Include"],
+    "lib": ["DOM", "ES2021", "ES6", "DOM.Iterable", "ScriptHost", "ES2016.Array.Include"],
     "module": "ES2020",
     "moduleResolution": "node",
     "noImplicitAny": false,
-    "paths": {
-      "three/addons/lines/*": ["./node_modules/@types/three/examples/jsm/lines/*"]
-    },
     "preserveConstEnums": true,
     "skipLibCheck": true,
     "sourceMap": true,
