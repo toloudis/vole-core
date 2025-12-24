@@ -14,11 +14,15 @@ export const enum VolumeLoadErrorType {
 
 export class VolumeLoadError extends Error {
   type: VolumeLoadErrorType;
+  cause?: unknown;
 
   constructor(message?: string, options?: { cause?: unknown; type?: VolumeLoadErrorType }) {
-    super(message, options);
+    super(message);
     this.name = "VolumeLoadError";
     this.type = options?.type ?? VolumeLoadErrorType.UNKNOWN;
+    if (options?.cause) {
+      this.cause = options.cause;
+    }
   }
 }
 
