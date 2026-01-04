@@ -32,7 +32,7 @@ import {
 } from "./zarr_utils/utils.js";
 import type { PrefetchDirection, SubscriberId, TCZYX, ZarrSource, NumericZarrArray } from "./zarr_utils/types.js";
 import { VolumeLoadError, VolumeLoadErrorType, wrapVolumeLoadError } from "./VolumeLoadError.js";
-import wrapArray, { RelaxedFetchStore } from "./zarr_utils/wrappers.js";
+import wrapArray, { RelaxedFetchStore, createStore } from "./zarr_utils/wrappers.js";
 import { assertMetadataHasMultiscales, toOMEZarrMetaV4, validateOMEZarrMetadata } from "./zarr_utils/validation.js";
 import { remapUri } from "../utils/url_utils.js";
 
@@ -146,9 +146,9 @@ class OMEZarrLoader extends ThreadableVolumeLoader {
     const urlsArr = (Array.isArray(urls) ? urls : [urls]).map(remapUri);
     const scenesArr = Array.isArray(scenes) ? scenes : [scenes];
 
-    // Create one `ZarrSource` per URL
+    // Create one `ZarrSource` per URL (or local file path in Electron)
     const sourceProms = urlsArr.map(async (url, i) => {
-      const store = new RelaxedFetchStore(url);
+      const store = await createStore(url);
       const root = zarr.root(store);
 
       const group = await zarr

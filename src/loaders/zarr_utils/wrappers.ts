@@ -5,6 +5,50 @@ import VolumeCache, { isChunk } from "../../VolumeCache.js";
 import type { WrappedArrayOpts } from "./types.js";
 import SubscribableRequestQueue from "../../utils/SubscribableRequestQueue.js";
 
+/**
+ * Detects if we're running in an Electron environment
+ */
+function isElectron(): boolean {
+  // Check for both renderer and main process
+  return (
+    typeof process !== "undefined" &&
+    typeof process.versions === "object" &&
+    !!process.versions.electron
+  );
+}
+
+/**
+ * Detects if a path is a local file path (not a URL)
+ */
+function isLocalFilePath(path: string): boolean {
+  // Check for common file path patterns
+  // Windows: C:\path, \\network\path
+  // Unix: /path, ~/path
+  // file:// protocol
+  return (
+    path.startsWith("file://") ||
+    path.startsWith("/") ||
+    path.startsWith("~/") ||
+    /^[a-zA-Z]:\\/.test(path) || // Windows drive letter
+    path.startsWith("\\\\")
+  );
+}
+
+/**
+ * Converts file:// URLs to local file paths
+ */
+function fileUrlToPath(url: string): string {
+  if (url.startsWith("file://")) {
+    let path = url.slice(7); // Remove 'file://'
+    // Handle Windows paths: file:///C:/path -> C:/path
+    if (path.startsWith("/") && /^[a-zA-Z]:/.test(path.slice(1))) {
+      path = path.slice(1);
+    }
+    return decodeURIComponent(path);
+  }
+  return url;
+}
+
 type AsyncReadableExt<Opts> = AsyncReadable<Opts & WrappedArrayOpts>;
 
 export default function wrapArray<
@@ -78,4 +122,30 @@ export class RelaxedFetchStore extends FetchStore {
       throw e;
     }
   }
+}
+
+/**
+ * Creates the appropriate store based on the path and environment.
+ * In Electron with local file paths, uses FileSystemStore (dynamically imported).
+ * Otherwise, uses RelaxedFetchStore for HTTP(S) URLs.
+ */
+export async function createStore(path: string, options?: RequestInit): Promise<AsyncReadable<unknown>> {
+  // Check if we're in Electron and the path is a local file
+  if (isElectron() && isLocalFilePath(path)) {
+    const filePath = fileUrlToPath(path);
+    try {
+      // Dynamically import FileSystemStore only in Node.js/Electron environments
+      // Use string concatenation to prevent Vite from trying to resolve at build time
+      const moduleName = "@zarrita" + "/storage";
+      const { FileSystemStore } = await import(/* @vite-ignore */ moduleName);
+      return new FileSystemStore(filePath) as AsyncReadable<unknown>;
+    } catch (error) {
+      throw new Error(
+        `FileSystemStore is not available or failed to initialize: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  // Default to FetchStore for URLs
+  return new RelaxedFetchStore(path, options);
 }
